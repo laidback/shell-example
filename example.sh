@@ -20,7 +20,7 @@ command -v which > /dev/null 2>&1 || { log "Require xx to be there." ERROR; exit
 
 # global logging settings
 # possible severity values are: 
-# * INFO, NOTICE, WARNING, ERROR, CRITICAL
+# * DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL
 readonly DATE='date +%Y/%m/%d:%H:%M:%S'
 readonly LOGFILE=>&1
 readonly SEVERITY=INFO
@@ -41,18 +41,20 @@ function log() {
     local severity="${2:-$SEVERITY}"
 
     case $severity in
+        DEBUG)
+            echo "$(tput setaf 7)["`${DATE}`"] [___DEBUG] (line: $(caller)) $msg $(tput sgr0)" $LOGFILE;;
         INFO)
-            echo "$(tput setaf 2)["`${DATE}]`" $msg $(tput sgr0)" $LOGFILE;;
+            echo "$(tput setaf 2)["`${DATE}`"] [____INFO] (line: $(caller)) $msg $(tput sgr0)" $LOGFILE;;
         NOTICE)
-            echo "$(tput setaf 4)["`${DATE}]`" $msg $(tput sgr0)" $LOGFILE;;
+            echo "$(tput setaf 6)["`${DATE}`"] [__NOTICE] (line: $(caller)) $msg $(tput sgr0)" $LOGFILE;;
         WARNING)
-            echo "$(tput setaf 3)["`${DATE}]`" $msg $(tput sgr0)" $LOGFILE;;
+            echo "$(tput setaf 3)["`${DATE}`"] [_WARNING] (line: $(caller)) $msg $(tput sgr0)" $LOGFILE;;
         ERROR)
-            echo "$(tput setaf 1)["`${DATE}]`" $msg $(tput sgr0)" $LOGFILE;;
+            echo "$(tput setaf 1)["`${DATE}`"] [___ERROR] (line: $(caller)) $msg $(tput sgr0)" $LOGFILE;;
         CRITICAL)
-            echo "$(tput setaf 6)["`${DATE}]`" $msg $(tput sgr0)" $LOGFILE;;
+            echo "$(tput setaf 4)["`${DATE}`"] [CRITICAL] (line: $(caller)) $msg $(tput sgr0)" $LOGFILE;;
         *)
-            echo "$(tput setaf 7)["`${DATE}]`" $severity $msg $(tput sgr0)" $LOGFILE;;
+            echo "$(tput setaf 7)["`${DATE}`"] [_UNKNOWN] (line: $(caller)) $msg $(tput sgr0)" $LOGFILE;;
     esac
 }
 
@@ -134,8 +136,16 @@ function main() {
     # parameters by default. This does not work with the log function taking two params.
     # Example: "$@" expands to "$1" "$2" ...
     log "argc \$#: $#"
-    fall=$(printf "%s" "$@")
+    all=$(printf "%s" "$@")
     log "argv \$@: $all" 
+
+    # * INFO, NOTICE, WARNING, ERROR, CRITICAL
+    log "Hello Debug" DEBUG
+    log "Hello Info" INFO
+    log "Hello Notice" NOTICE
+    log "Hello Warning" WARNING
+    log "Hello Error" ERROR
+    log "Hello Critical" CRITICAL
 
     foo
 
