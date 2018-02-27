@@ -4,6 +4,7 @@
 
 # default script settings
 # * fail immediately on the first error occuring
+# * allow clean trapping for ERR
 # * fail also if the call to nested functions fails
 # * fail if unset variables are used
 set -o errexit
@@ -11,17 +12,18 @@ set -o errtrace
 set -o pipefail
 set -o nounset
 
-# global exports ans paths
+# global exports and paths
 export PATH=$PATH
 
+# check if program dependencies exist
+command -v which > /dev/null 2>&1 || { log "Require xx to be there." ERROR; exit 1; }
+
+# global logging settings
+# possible severity values are: 
+# * INFO, NOTICE, WARNING, ERROR, CRITICAL
 readonly DATE='date +%Y/%m/%d:%H:%M:%S'
 readonly LOGFILE=>&1
 readonly SEVERITY=INFO
-# INFO
-# NOTICE
-# WARNING
-# ERROR
-# CRITICAL
 
 # ------------------------------
 # log
@@ -54,34 +56,49 @@ function log() {
     esac
 }
 
-# set exit actions even for the error situation
-trap "log 'thanks for using this script'" 0
-
+# ------------------------------
+# err_report
+# Globals:
+#   None
+# Arguments:
+#   None
+# Returns:
+#   None
+# ------------------------------
 function err_report() {
     log "errexit on line $(caller)" ERROR
 }
+
+# set the global error reporting trap
 trap err_report ERR
 
-# get your own absolute directory location
-BASH_SRC="${BASH_SOURCE[0]}"
-while [ -h "$BASH_SRC" ]; do  # follow if source is symlink
-    ABS_DIR="$( cd -P $(dirname "$BASH_SRC") && pwd)" # get dirname of parent
-    BASH_SRC="$(readlink "$BASH_SRC")"
-    [[ $BASH_SRC != /* ]] && BASH_SRC="$ABS_DIR/$BASH_SRC"
-done
-ABS_DIR="$(cd -P $(dirname "$BASH_SRC") && pwd)"
-log "absolute directory is: $ABS_DIR"
-
-# argc and argv logging
-log "argc \$#: $#" 
-
-# argv needs to be written to a string, because it will be passed as multiple 
-# parameters which does not work with the log function.
-# passing "$@" expands to "$1" "$2" ...
-all=$(printf "%s" "$@")
-log "argv \$@: $all" 
+# ------------------------------
+# get_abs_dir
+# follow BASH_SOURCE if source is symlink until you find the real root
+# Globals:
+#   BASH_SOURCE[0]
+# Arguments:
+#   None
+# Returns:
+#   abs_dir: the absolute directory where the script resides
+# ------------------------------
+function get_abs_dir() {
+    local bash_src="${BASH_SOURCE[0]}"
+    
+    while [ -h "$bash_src" ]; do
+         # get parent directory
+        abs_dir="$( cd -P $(dirname "$bash_src") && pwd)"
+        bash_src="$(readlink "$bash_src")"
+        [[ $bash_src != /* ]] && bash_src="$abs_dir/$bash_src"
+    done
+    abs_dir="$(cd -P $(dirname "$bash_src") && pwd)"
+    echo $abs_dir
+}
 
 # apply passed params to variables
+# this can be done at the top of your script. This way you can refer to the globals
+# without having to worry about interference because of sideeffects caused by changed variables.
+# if you are paranoid you can set them to readonly also.
 scriptname=$0
 var1=$1
 var2=$2
@@ -92,17 +109,10 @@ var3=$3
 read -p "Enter some value: " x
 read -p "Enter other value: " y
 
-# check if program dependencies exist
-command -v which > /dev/null 2>&1 || { 
-    log "Require xx to be there." ERROR; 
-    exit 1; 
-}
-
 # simple function definition
 function foo() {    
     log "foo function"
 }
-foo
 
 # simple function with parameters.
 # function receices a count and lenght like the whole script
@@ -118,18 +128,30 @@ function bar() {
     log "\$2: $2"
 }
 
-# this can test nicely and exit with the error trap
-# we simply test the return for a zero value
-test -z "$(bar 5)" || { 
-    log "the call to bar went wrong" ERROR; false; 
+function main() {
+    # log argc and argv
+    # argv needs to be written to a string, because it will be passed as multiple 
+    # parameters by default. This does not work with the log function taking two params.
+    # Example: "$@" expands to "$1" "$2" ...
+    log "argc \$#: $#"
+    fall=$(printf "%s" "$@")
+    log "argv \$@: $all" 
+
+    foo
+
+    # this can test nicely and exit with the error trap
+    # we simply test the return for a zero value
+    test -z "$(bar 5)" || { 
+        log "the call to bar went wrong" ERROR; false; 
+    }
+
+    # this too, but does not include the nice message
+    ret=$(bar 5)
 }
 
-# this too, but does not include the nice message
-ret=$(bar 5)
-
-log "thanks for learning bash ... bye"
-
+# call the main function. This way it is easier to put more variables into locals
+# the convention is like in C or java with argc and argv
+main "$#" "$@"
 exit 0
 
 # vim: ft=sh sw=4 ts=4 sts=4 et nowrap:
-
