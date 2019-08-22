@@ -97,15 +97,17 @@ function get_abs_dir() {
     echo $abs_dir
 }
 
-# apply passed params to variables
-# this can be done at the top of your script. This way you can refer to the globals
-# without having to worry about interference because of sideeffects caused by changed variables.
-# if you are paranoid you can set them to readonly also.
+# --- source utils and libs
+source $(abspath)/utils
+source $(abspath)/"${scriptname}".conf
+
+# --- basic script variables
+# C-style params for main function usage.
+# Scriptvariable $0 is not affected by shift
+# If you are paranoid you can set them to readonly also.
 scriptname=$0
-var1=$1
-var2=$2
-var3=$3
-# ...
+argc=$#
+argv=$@
 
 # read command line params
 read -p "Enter some value: " x
@@ -159,9 +161,20 @@ function main() {
     ret=$(bar 5)
 }
 
-# call the main function. This way it is easier to put more variables into locals
-# the convention is like in C or java with argc and argv
-main "$#" "$@"
-exit 0
+# --- Main function ---
+# It is easier to put more variables into locals if you start
+# passing them carefully. The convention is like in C or java
+# with argc and argv.
+main() #{{{1
+{
+    echo "cmd main called"
+    echo "script: $BASH_SOURCE"
+    echo "params: $#, $@"
+}
+
+# --- shell runmode check
+if [ "$0" = "$BASH_SOURCE" ]; then
+    main "$@"
+fi
 
 # vim: ft=sh sw=4 ts=4 sts=4 et nowrap:
